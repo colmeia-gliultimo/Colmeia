@@ -219,13 +219,13 @@ function formatarValorBR(numero) {
   return `R$${numero.toFixed(2).replace('.', ',')}`;
 }
 
-// Valor pago ao mediador = valor da fila (de um painel específico) +
-// acréscimo. Se o valor não puder ser entendido como número, cai no
-// valor padrão + acréscimo.
+// Valor mostrado pelo bot quando a fila vira "pagar" = o DOBRO do valor da
+// fila (ex.: fila R$1,00 -> R$2,00). Se o valor não puder ser entendido como
+// número, usa o valor padrão (também dobrado).
 function calcularValorMediador(valorFila) {
   const valorFilaNumero = parseValorBR(valorFila);
   const base = valorFilaNumero !== null ? valorFilaNumero : (parseValorBR(VALOR_APOSTA_PADRAO) || 0);
-  return formatarValorBR(base + taxaMediadorDoValor(valorFila));
+  return formatarValorBR(base * 2);
 }
 // Valor pago ao mediador = valor da fila + um acréscimo fixo (calculado
 // automaticamente). Configure o acréscimo em ACRESCIMO_MEDIADOR (em

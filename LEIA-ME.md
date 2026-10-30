@@ -151,6 +151,8 @@ suporte, blacklist e análise de tela por Google Meet.
      mediador não são contadas duas vezes na mesma rodada.
 9. **Cancelar** (em qualquer etapa): contagem regressiva, remove os
    jogadores e exclui o tópico.
+    **Valor mostrado quando a fila vira "pagar":** o bot coloca o **dobro**
+    do valor da fila (ex.: fila de R$1,00 -> mostra R$2,00).
 10. **QR**: o bot gera o QR code do Pix do mediador já com o **valor
    preenchido** = valor da fila + taxa do mediador (`ACRESCIMO_MEDIADOR`).
    Ex.: fila de R$2,00 e taxa de R$1,00 -> QR de R$3,00. Vale para toda
