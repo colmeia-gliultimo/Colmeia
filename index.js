@@ -142,17 +142,30 @@ const path = require('path');
 
 // O Discord NÃO mostra emoji personalizado no TÍTULO de um embed: aparece só
 // o código (":trofeus:") em vez da imagem. Por isso, quando o título tem um
-// emoji personalizado (<:nome:id> ou <a:nome:id>), o título é mandado como
-// um cabeçalho (##) no começo da descrição, onde o emoji aparece normal.
+// emoji personalizado (<:nome:id> ou <a:nome:id>), o bot tira o emoji do texto
+// do título e mostra a IMAGEM dele (pelo link do emoji) como ícone da linha de
+// título (o campo "author" do embed). Imagem por link sempre aparece, sem
+// depender de permissão de emoji. Se o embed já tem "author", o título vai como
+// uma linha em negrito no começo da descrição.
 // Vale pra TODOS os embeds do bot, sem precisar mexer um por um.
 const REGEX_EMOJI_PERSONALIZADO = /<a?:\w+:\d+>/;
+const REGEX_EMOJI_PERSONALIZADO_PARTES = /<(a?):(\w+):(\d+)>/;
 const toJSONEmbedOriginal = EmbedBuilder.prototype.toJSON;
 EmbedBuilder.prototype.toJSON = function () {
   const dados = toJSONEmbedOriginal.call(this);
   try {
     if (dados && typeof dados.title === 'string' && REGEX_EMOJI_PERSONALIZADO.test(dados.title)) {
       const { title, ...resto } = dados;
-      resto.description = `## ${title}${resto.description ? `\n${resto.description}` : ''}`;
+      const partes = title.match(REGEX_EMOJI_PERSONALIZADO_PARTES);
+      const textoSemEmoji = title.replace(/<a?:\w+:\d+>/g, '').replace(/\s+/g, ' ').trim();
+      if (partes && !resto.author && textoSemEmoji) {
+        resto.author = {
+          name: textoSemEmoji,
+          icon_url: `https://cdn.discordapp.com/emojis/${partes[3]}.${partes[1] ? 'gif' : 'png'}?size=64&quality=lossless`,
+        };
+        return resto;
+      }
+      resto.description = `**${title}**${resto.description ? `\n${resto.description}` : ''}`;
       return resto;
     }
   } catch (err) {
@@ -472,6 +485,28 @@ const CANAL_FILAS_ID = process.env.CANAL_FILAS_ID || '1541242653532750005';
 // diferenciar maiúscula de minúscula. Olha primeiro o servidor indicado,
 // depois todos os outros servidores onde o bot está e, por fim, os
 // emojis do próprio app do bot (Developer Portal > Emojis).
+// Copia um emoji de servidor pra lista de emojis do PRÓPRIO app do bot
+// (Developer Portal > Emojis). Emoji do app funciona em qualquer servidor e em
+// qualquer canal, sem depender de "Usar Emojis Externos". Devolve a cópia que
+// já existe, ou cria uma; se algo falhar, devolve null.
+async function copiarEmojiParaApp(emoji) {
+  try {
+    const app = client.application;
+    if (!app || !app.emojis || !emoji || !emoji.name) return null;
+    await app.emojis.fetch().catch(() => {});
+    const alvo = emoji.name.toLowerCase();
+    const jaTem = app.emojis.cache.find((e) => e.name && e.name.toLowerCase() === alvo);
+    if (jaTem) return jaTem;
+    return await app.emojis.create({
+      attachment: emoji.imageURL({ extension: emoji.animated ? 'gif' : 'png', size: 128 }),
+      name: emoji.name,
+    });
+  } catch (err) {
+    console.error(`⚠️ Não consegui copiar o emoji "${emoji && emoji.name}" pro app do bot:`, err.message);
+    return null;
+  }
+}
+
 async function acharEmojiPorNome(nome, guildPrincipal = null) {
   const alvo = String(nome).toLowerCase();
   const bate = (e) => e && e.name && e.name.toLowerCase() === alvo;
@@ -483,7 +518,16 @@ async function acharEmojiPorNome(nome, guildPrincipal = null) {
     // bot ligar e o emoji existente não seria encontrado.
     await g.emojis.fetch().catch(() => {});
     const achado = g.emojis.cache.find(bate);
-    if (achado) return achado;
+    if (achado) {
+      // Bot em mais de um servidor: o emoji do servidor A pode não aparecer no
+      // texto das mensagens do servidor B (vira ":nome:"). A cópia no app do
+      // bot aparece em todos.
+      if (client.guilds.cache.size > 1) {
+        const copia = await copiarEmojiParaApp(achado);
+        if (copia) return copia;
+      }
+      return achado;
+    }
   }
   try {
     const emojisApp = await client.application?.emojis?.fetch().catch(() => null);
@@ -12225,6 +12269,7 @@ async function carregarTodosEmojis() {
   } catch (err) {
     console.error('⚠️ Erro ao carregar o emoji :sss::', err.message);
   }
+  console.log(`🎨 Emojis carregados (servidores do bot: ${client.guilds.cache.size}). Troféu = ${EMOJI_TROFEU} | Coroa 2 = ${EMOJI_COROA_2}`);
 }
 
 // Garante que os emojis estão carregados. Se já estão, volta na hora; se alguém

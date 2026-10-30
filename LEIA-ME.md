@@ -48,8 +48,15 @@ suporte, blacklist e análise de tela por Google Meet.
   > painel), se já passaram 5 minutos da última carga. Os emojis **animados** também
   > funcionam (o bot usa `<a:nome:ID>` neles).
   > O Discord **não mostra emoji personalizado no título** de um embed (aparece só
-  > `:trofeus:`). Por isso, quando o título tem emoji personalizado, o bot manda o título
-  > como cabeçalho (`##`) no começo do texto do embed, onde o emoji aparece normal.
+  > `:trofeus:`). Por isso, quando o título tem emoji personalizado, o bot tira o emoji do
+  > texto e mostra a **imagem** dele (pelo link do emoji) como ícone da linha de título.
+  > Imagem por link sempre aparece, sem depender de permissão. Se o embed já tiver um
+  > autor, o título vai como uma linha em **negrito** no começo do texto.
+  > Se o bot estiver em **mais de um servidor**, ele copia cada emoji para a lista de
+  > emojis do próprio app (Developer Portal > Emojis), que funciona em qualquer servidor.
+  > Se a imagem de um emoji for trocada no servidor, apague a cópia no Developer Portal
+  > para o bot copiar de novo. Se mesmo assim aparecer `:nome:` em vez da imagem, confira
+  > se o cargo do bot tem a permissão **Usar emojis externos** no canal.
   > Nomes que o bot procura no servidor: `sss`, `c_`, `giro`, `giro_ouro`, `informaes`,
   > `copiar`, `ggppss`, `abelhas`, `qr`, `progresso`, `mnramio`, `dindin`, `colmeia_1`,
   > `org_colmeia`, `saida`, `pc`, `trofeus`, `coroa_1`, `coroa_2`, `console` (do botão
