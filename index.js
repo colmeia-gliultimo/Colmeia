@@ -9503,6 +9503,56 @@ client.on('messageCreate', async (m) => {
   }
 });
 
+// ---------- MEMBRO MEXENDO NO OUTRO BOT NO TÓPICO DA PARTIDA -> APAGA E AVISA ----------
+// Quem só tem o cargo Membro (não é o mediador da partida, nem tem cargo de
+// Mediador/CEO) não pode fazer o OUTRO bot agir no tópico: a mensagem criada
+// pelo outro bot é apagada na hora e o bot da Colmeia avisa só a pessoa
+// (por DM; se a DM estiver fechada, manda um aviso que some em 8 segundos).
+client.on('messageCreate', async (m) => {
+  try {
+    if (!m.author || !m.author.bot || !client.user || m.author.id === client.user.id) return;
+    if (!m.guild || !m.channel || !m.channel.isThread || !m.channel.isThread()) return;
+    const partida = partidas.get(m.channelId);
+    if (!partida || partida.cancelando) return;
+
+    // quem mandou o outro bot agir
+    let autorId =
+      (m.interactionMetadata && m.interactionMetadata.user && m.interactionMetadata.user.id) ||
+      (m.interaction && m.interaction.user && m.interaction.user.id) ||
+      null;
+    if (!autorId && m.reference && m.reference.messageId) {
+      const ref = await m.channel.messages.fetch(m.reference.messageId).catch(() => null);
+      if (ref && ref.author && !ref.author.bot) autorId = ref.author.id;
+    }
+    if (!autorId || autorId === partida.mediadorId) return;
+
+    const membro = await m.guild.members.fetch(autorId).catch(() => null);
+    if (!membro) return;
+    if (await membroPodeMediar(membro, m.guild)) return;
+
+    // só vale pra quem tem o cargo Membro
+    let membroRoleId = CONFIG_CARGOS.membroRoleId || MEMBRO_ROLE_ID;
+    if (!membroRoleId) {
+      const roles = await m.guild.roles.fetch().catch(() => null);
+      const achado = roles && roles.find((r) => r.name.trim().toLowerCase() === 'membro');
+      membroRoleId = achado ? achado.id : null;
+    }
+    if (!membroRoleId || !(await membroTemCargo(membro, membroRoleId, m.guild))) return;
+
+    await m.delete().catch(() => {});
+
+    const aviso = '🚫 Você não tem permissão para utilizar este comando!';
+    try {
+      await membro.send(aviso);
+    } catch (err) {
+      const msg = await m.channel.send({ content: `<@${autorId}> ${aviso}`, allowedMentions: { users: [autorId] } }).catch(() => null);
+      if (msg) setTimeout(() => msg.delete().catch(() => {}), 8000);
+    }
+  } catch (err) {
+    // extra: nunca pode derrubar o bot
+  }
+});
+
 // ---------------------------------------------------------------------
 // NOVOS: !regrasanalista (visual novo), !colmeia1, !delete,
 // !painelticketmediador (ticket do mediador)
@@ -12096,16 +12146,16 @@ client.on('interactionCreate', async (interaction) => {
         const faltantes = partida.jogadores.filter((id) => !partida.confirmados.has(id));
         const textoFaltantes =
           faltantes.length > 1
-            ? `Os outros jogadores (${faltantes.map((id) => `<@${id}>`).join(', ')}) precisam confirmar para continuar.`
-            : `${faltantes.map((id) => `<@${id}>`).join(', ')} precisa confirmar para continuar.`;
+            ? 'Os outros jogadores precisam confirmar para continuar.'
+            : 'O outro jogador precisa confirmar para continuar.';
         // (a promessa fica guardada: se o outro jogador confirmar quase junto,
         // o bot espera esta mensagem terminar de ser enviada pra poder apagá-la)
         const promessaAviso = interaction.channel
           .send({
             // marca (menciona) quem ainda falta confirmar: faz a mensagem
             // ficar com o destaque amarelo no Discord, igual às outras
-            content: faltantes.map((id) => `<@${id}>`).join(' '),
-            allowedMentions: { users: faltantes },
+            content: partida.jogadores.map((id) => `<@${id}>`).join(' '),
+            allowedMentions: { users: partida.jogadores },
             embeds: [
               new EmbedBuilder()
                 .setColor(0x57f287) // verde claro
