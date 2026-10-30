@@ -2690,9 +2690,9 @@ function montarEmbedPainelAtendimento() {
     );
 }
 
-// Emojis do painel de atendimento (nomes no servidor: :r: :spr: :cntp: :vgs: :org:).
+// Emojis do painel de atendimento (nomes no servidor: :r_: :spr: :cntp: :vgs: :org:).
 // Se o bot não achar o emoji, usa um emoji comum no lugar.
-let EMOJI_TK_REEMBOLSO = '💰'; // :r:
+let EMOJI_TK_REEMBOLSO = '💰'; // :r_:
 let EMOJI_TK_SUPORTE = '🎧'; // :spr:
 let EMOJI_TK_CENTRAL = '🎫'; // :cntp:
 let EMOJI_TK_VAGAS = '📋'; // :vgs:
@@ -2706,7 +2706,7 @@ async function carregarEmojisTicket() {
     }
     return null;
   };
-  const r = await procurar('r');
+  const r = await procurar('r_');
   if (r) EMOJI_TK_REEMBOLSO = textoEmoji(r);
   const spr = await procurar('spr');
   if (spr) EMOJI_TK_SUPORTE = textoEmoji(spr);
@@ -2738,13 +2738,25 @@ function montarPainelAtendimentoNovo() {
     container.addTextDisplayComponents(cabecalho);
   }
 
+  // Vagas: logo abaixo do cabeçalho, do lado direito (onde estava escrito "vagas" na imagem de exemplo)
+  const botaoVagas = new ButtonBuilder().setCustomId('atendimento_btn_vagas').setLabel('Vagas').setStyle(ButtonStyle.Secondary);
+  try {
+    botaoVagas.setEmoji(EMOJI_TK_VAGAS);
+  } catch (err) {
+    // emoji inválido: fica só o texto
+  }
+  container.addSectionComponents(
+    new SectionBuilder()
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${EMOJI_TK_VAGAS} **Vagas**\n-# Mediador, analista ou suporte`))
+      .setButtonAccessory(botaoVagas)
+  );
+
   container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
 
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(
       `${EMOJI_TK_REEMBOLSO} **Reembolso**\n-# Pagamento, PIX ou valor que não caiu\n` +
-        `${EMOJI_TK_SUPORTE} **Suporte**\n-# Dúvidas, denúncias e outros problemas\n` +
-        `${EMOJI_TK_VAGAS} **Vagas**\n-# Mediador, analista ou suporte`
+        `${EMOJI_TK_SUPORTE} **Suporte**\n-# Dúvidas, denúncias e outros problemas`
     )
   );
 
@@ -2760,8 +2772,7 @@ function montarPainelAtendimentoNovo() {
   container.addActionRowComponents(
     new ActionRowBuilder().addComponents(
       botao('atendimento_btn_reembolso', 'Reembolso', EMOJI_TK_REEMBOLSO),
-      botao('atendimento_btn_suporte', 'Suporte', EMOJI_TK_SUPORTE),
-      botao('atendimento_btn_vagas', 'Vagas', EMOJI_TK_VAGAS)
+      botao('atendimento_btn_suporte', 'Suporte', EMOJI_TK_SUPORTE)
     )
   );
 
