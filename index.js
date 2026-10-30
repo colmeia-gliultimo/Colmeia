@@ -4178,6 +4178,23 @@ function montarPedirComprovanteLaranja() {
     );
 }
 
+// !mensagem: aviso de que o sistema de salas automáticas ainda não foi
+// adicionado ao servidor. Card amarelo com traços em cima e embaixo.
+function montarEmbedAvisoSalasAutomaticas() {
+  const traco = '——————————————';
+  return new EmbedBuilder()
+    .setColor(COR_AMARELA)
+    .setDescription(
+      `${traco}\n\n` +
+        '⚠️ **SISTEMA DE SALAS AUTOMÁTICAS**\n\n' +
+        'O bot de salas automáticas ainda não foi adicionado ao servidor. ' +
+        'Nossa equipe está trabalhando para disponibilizar o sistema o mais rápido possível.\n\n' +
+        '⏳ Pedimos que aguarde e fique atento às atualizações. Em breve teremos novidades!\n\n' +
+        '🐝 **Equipe COLMEIA**\n\n' +
+        `${traco}`
+    );
+}
+
 // Exemplo de "pg + nome" embaixo das regras — só se o mediador tem API.
 async function enviarExemploPix(thread, partida) {
   if (!apiDoMediador(partida.mediadorId)) {
@@ -8597,6 +8614,17 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
+
+  // !mensagem -> posta o aviso do sistema de salas automáticas (card amarelo).
+  if (message.content.trim() === '!mensagem') {
+    if (message.member && !message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+      return responderPrivadamente(message, { content: 'Você não tem permissão para usar esse comando.' });
+    }
+
+    await message.channel.send({ embeds: [montarEmbedAvisoSalasAutomaticas()] });
+    await message.delete().catch(() => {});
+    return;
+  }
 
   // !mudoutela -> manda o aviso "Mudou a forma de mostrar a tela" no
   // canal atual. Só quem tem o cargo de CEO pode usar, e funciona em
