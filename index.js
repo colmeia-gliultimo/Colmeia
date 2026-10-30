@@ -2339,15 +2339,17 @@ function montarEmbedAnalisesFuncionando() {
 // ---------- CONFIGURAÇÃO DO MEDIADOR (⚙️ no painel da fila) ----------
 // Cada mediador escolhe como aparece a mensagem "MANDEM O COMPROVANTE" nas
 // partidas dele (só quando ele NÃO tem API cadastrada).
-//   'vermelho' = padrão (traços vermelhos)
+//   'laranja'  = padrão (card bonitinho com traços laranja)
+//   'vermelho' = traços vermelhos
 //   'amarelo'  = traços amarelos
 //   'off'      = não mostra a mensagem
 //   'nenhum'   = o mediador apertou "Remover" e ainda não escolheu outra
-//                (enquanto isso vale o padrão vermelho)
-// Sem registro = padrão vermelho já ativado.
+//                (enquanto isso vale o padrão laranja)
+// Sem registro = padrão laranja já ativado.
 const CAMINHO_CONFIG_MEDIADOR = path.join(DATA_DIR, 'config-mediador.json');
 const OPCOES_COMPROVANTE = {
-  vermelho: { label: 'Mandem comprovante (traços vermelhos)', description: 'Padrão: mensagem com traços vermelhos.', emoji: '🔴' },
+  laranja: { label: 'Mandem comprovante (traços laranja)', description: 'Padrão: card bonitinho com traços laranja.', emoji: '🟠' },
+  vermelho: { label: 'Mandem comprovante (traços vermelhos)', description: 'Mensagem com traços vermelhos.', emoji: '🔴' },
   amarelo: { label: 'Mandem comprovante (traços amarelos)', description: 'Mensagem com traços amarelos.', emoji: '🟡' },
   off: { label: 'Sem mensagem', description: 'A mensagem não aparece na partida.', emoji: '🚫' },
 };
@@ -2370,11 +2372,11 @@ function salvarConfigMediador() {
 function pegarOpcaoComprovante(mediadorId) {
   const v = CONFIG_MEDIADOR[mediadorId] && CONFIG_MEDIADOR[mediadorId].comprovante;
   if (v === 'nenhum') return null;
-  return OPCOES_COMPROVANTE[v] ? v : 'vermelho';
+  return OPCOES_COMPROVANTE[v] ? v : 'laranja';
 }
-// Como a mensagem se comporta de fato ('nenhum' vale como vermelho)
+// Como a mensagem se comporta de fato ('nenhum' vale como laranja)
 function modoComprovanteEfetivo(mediadorId) {
-  return pegarOpcaoComprovante(mediadorId) || 'vermelho';
+  return pegarOpcaoComprovante(mediadorId) || 'laranja';
 }
 function montarPainelConfigMediador(mediadorId, aviso) {
   const ativa = pegarOpcaoComprovante(mediadorId);
@@ -2396,7 +2398,7 @@ function montarPainelConfigMediador(mediadorId, aviso) {
     .setStyle(ButtonStyle.Danger);
   const status = ativa
     ? `✅ Ativada: **${OPCOES_COMPROVANTE[ativa].label}**`
-    : 'Nenhuma opção escolhida (enquanto isso vale o padrão: traços vermelhos).';
+    : 'Nenhuma opção escolhida (enquanto isso vale o padrão: traços laranja).';
   return {
     content: `⚙️ **Configuração do mediador**\n${status}${aviso ? `\n\n${aviso}` : ''}`,
     components: [new ActionRowBuilder().addComponents(select), new ActionRowBuilder().addComponents(remover)],
@@ -4050,6 +4052,23 @@ function montarTextoPedirComprovante(cor = 'vermelho') {
   );
 }
 
+// Aviso de comprovante em LARANJA: card (embed) com barra laranja e traços
+// laranja de emoji — o Discord não tem laranja no bloco ansi, por isso embed.
+const COR_COMPROVANTE_LARANJA = 0xFF8C00;
+function montarPedirComprovanteLaranja() {
+  const traco = '🟧🟧🟧🟧🟧🟧🟧🟧🟧🟧🟧🟧';
+  return new EmbedBuilder()
+    .setColor(COR_COMPROVANTE_LARANJA)
+    .setDescription(
+      `${traco}\n\n` +
+        '# 📩 MANDEM O COMPROVANTE\n\n' +
+        '**Mandem o comprovante do Pix**\n' +
+        '**aqui no chat para confirmar**\n' +
+        '**o pagamento!**\n\n' +
+        `${traco}`
+    );
+}
+
 // Exemplo de "pg + nome" embaixo das regras — só se o mediador tem API.
 async function enviarExemploPix(thread, partida) {
   if (!apiDoMediador(partida.mediadorId)) {
@@ -4060,7 +4079,13 @@ async function enviarExemploPix(thread, partida) {
     const msgComprovante =
       modoComprovante === 'off'
         ? null
-        : await thread.send({ content: montarTextoPedirComprovante(modoComprovante) }).catch(() => null);
+        : await thread
+            .send(
+              modoComprovante === 'laranja'
+                ? { embeds: [montarPedirComprovanteLaranja()] }
+                : { content: montarTextoPedirComprovante(modoComprovante) }
+            )
+            .catch(() => null);
     partida.pixComprovanteMsgId = msgComprovante ? msgComprovante.id : null;
     await pixApagarMensagem(thread, antigoComprovante);
     salvarPartidas();
@@ -4156,7 +4181,7 @@ async function processarPagamentoPix(message, partida, nomeInformado) {
 // O jogador manda a FOTO do comprovante no tópico da partida. O bot lê a
 // imagem (OCR com tesseract.js), confere o VALOR (valor da fila + taxa) e se
 // o DESTINATÁRIO é o mediador (chave Pix ou nome cadastrado) e só então
-// confirma. Nada é aprovado sem a leitura bater. Cada comprovante só vale
+// confirma. O valor vale se for IGUAL ou MAIOR que fila + taxa (pagou a mais). Nada é aprovado sem a leitura bater. Cada comprovante só vale
 // uma vez (código da transação ou hash da imagem). Sem tesseract.js
 // instalado, o bot não confirma nada (avisa e o mediador confere na mão).
 // OBS: leitura de imagem NÃO detecta comprovante editado/falso — o mediador
@@ -4386,8 +4411,9 @@ async function processarComprovanteImagem(message, partida, anexo) {
     const valores = extrairValoresDoTexto(textoOcr);
     const codigo = extrairCodigoTransacao(textoOcr);
     const idUnico = `comp:${codigo || hash}`;
-    if (!valores.some((v) => Math.abs(v - valor) < 0.005)) {
-      motivoRecusa = `Não encontrei o valor de **${formatarValorBR(valor)}** no comprovante.`;
+    // vale o valor da fila + taxa OU qualquer valor maior (pagou a mais)
+    if (!valores.some((v) => v >= valor - 0.005)) {
+      motivoRecusa = `Não encontrei o valor de **${formatarValorBR(valor)}** (ou mais) no comprovante.`;
     } else if (!comprovanteEhDoMediador(textoOcr, partida.mediadorId)) {
       motivoRecusa = 'O comprovante não parece ser um Pix para a chave do mediador desta partida.';
     } else if (pixDados.usados.includes(idUnico) || (hash && pixDados.usados.includes(`comp:${hash}`))) {

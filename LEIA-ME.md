@@ -15,8 +15,8 @@ suporte, blacklist e análise de tela por Google Meet.
   mediador (veja "Cargos") e já cadastrou o Pix.
 - **⚙️ Configuração do mediador** (botão ⚙️ no painel da fila): o mediador
   escolhe como aparece a mensagem "MANDEM O COMPROVANTE" nas partidas dele
-  (só quando ele não tem API): traços vermelhos (padrão), traços amarelos ou
-  sem mensagem. Só pode mexer fora da fila. Para trocar de opção, clique em
+  (só quando ele não tem API): traços laranja (padrão), traços vermelhos,
+  traços amarelos ou sem mensagem. Só pode mexer fora da fila. Para trocar de opção, clique em
   **Remover** e escolha outra. Fica salvo em `config-mediador.json`.
 - **Tópicos sem resposta são excluídos, não arquivados.** O Discord arquiva sozinho
   um tópico parado (partidas e tickets de suporte, reembolso, mediador e vagas: 1 hora;
@@ -381,8 +381,13 @@ comprovante** no tópico da partida.
 - **Foto que não é comprovante** (print do jogo, selfie, meme...): o bot **não manda
   nenhuma mensagem**. Se a imagem não puder ser lida, também fica quieto (o erro
   vai só para o log do bot).
-- Depois da verificação, a conferência continua igual: valor da fila + taxa,
-  destinatário (chave ou nome do mediador) e comprovante que nunca foi usado.
+- Depois da verificação, a conferência é: valor da fila + taxa **ou mais** (quem
+  pagou a mais também é válido; ex.: fila de R$100 + taxa, qualquer valor igual
+  ou maior vale), destinatário (chave ou nome do mediador) e comprovante que
+  nunca foi usado.
+- A mensagem **"MANDEM O COMPROVANTE"** agora é um card bonitinho com traços
+  laranja (🟧) e barra laranja ao lado. As versões de traços vermelhos e amarelos
+  continuam disponíveis no ⚙️ do mediador.
 - Quando **todos** os comprovantes são confirmados, aparece o card **"Todos os
   comprovantes confirmados 🟢"** e, logo abaixo, a mensagem **"Criando sala..."**
   com as letras se mexendo (um brilho passa pelas letras, como no "pensando").
