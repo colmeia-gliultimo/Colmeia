@@ -4499,10 +4499,9 @@ async function processarComprovanteImagem(message, partida, anexo) {
     console.error('⚠️ Erro ao ler a imagem enviada no tópico (nenhuma mensagem enviada ao chat):', err.message);
   }
 
-  // 2) Não é foto de comprovante (ou não deu pra ler): o bot não manda mensagem nenhuma.
-  if (erroLeitura || !pareceComprovante(textoOcr)) return;
-
-  // 3) É comprovante: agora sim segue o fluxo de verificação.
+  // 2) QUALQUER foto é conferida: se não for um comprovante válido (não bate
+  // com o Pix do mediador / valor), cai como inválida e a mensagem some em 5s.
+  // 3) Segue o fluxo de verificação.
   if (partida.pixPagos.some((p) => p.userId === message.author.id)) {
     return avisoTemporario(thread, `<@${message.author.id}> seu comprovante já está confirmado 🟢`);
   }
@@ -4512,7 +4511,9 @@ async function processarComprovanteImagem(message, partida, anexo) {
   await enviarStatusPix(thread, partida, { embeds: [montarEmbedVerificandoComprovante(valor)] });
 
   let motivoRecusa = null;
-  {
+  if (erroLeitura) {
+    motivoRecusa = 'Não consegui ler essa imagem.';
+  } else {
     const valores = extrairValoresDoTexto(textoOcr);
     const codigo = extrairCodigoTransacao(textoOcr);
     const idUnico = `comp:${codigo || hash}`;
@@ -4535,7 +4536,17 @@ async function processarComprovanteImagem(message, partida, anexo) {
   if (resto > 0) await pixEsperar(resto);
 
   if (motivoRecusa) {
-    await enviarStatusPix(thread, partida, { embeds: [montarEmbedComprovanteRecusado(motivoRecusa)] });
+    const msgRecusada = await enviarStatusPix(thread, partida, { embeds: [montarEmbedComprovanteRecusado(motivoRecusa)] });
+    // a mensagem de inválido é apagada depois de 5 segundos
+    if (msgRecusada) {
+      setTimeout(() => {
+        msgRecusada.delete().catch(() => {});
+        if (partida.pixStatusMsgId === msgRecusada.id) {
+          partida.pixStatusMsgId = null;
+          salvarPartidas();
+        }
+      }, 5000);
+    }
     return;
   }
 
