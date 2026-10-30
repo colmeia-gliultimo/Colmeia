@@ -140,6 +140,27 @@ const Jimp = require('jimp');
 const fs = require('fs');
 const path = require('path');
 
+// O Discord NÃO mostra emoji personalizado no TÍTULO de um embed: aparece só
+// o código (":trofeus:") em vez da imagem. Por isso, quando o título tem um
+// emoji personalizado (<:nome:id> ou <a:nome:id>), o título é mandado como
+// um cabeçalho (##) no começo da descrição, onde o emoji aparece normal.
+// Vale pra TODOS os embeds do bot, sem precisar mexer um por um.
+const REGEX_EMOJI_PERSONALIZADO = /<a?:\w+:\d+>/;
+const toJSONEmbedOriginal = EmbedBuilder.prototype.toJSON;
+EmbedBuilder.prototype.toJSON = function () {
+  const dados = toJSONEmbedOriginal.call(this);
+  try {
+    if (dados && typeof dados.title === 'string' && REGEX_EMOJI_PERSONALIZADO.test(dados.title)) {
+      const { title, ...resto } = dados;
+      resto.description = `## ${title}${resto.description ? `\n${resto.description}` : ''}`;
+      return resto;
+    }
+  } catch (err) {
+    // se der qualquer problema, manda o embed do jeito que estava
+  }
+  return dados;
+};
+
 // Grava o .json em um arquivo temporário e só depois troca pelo definitivo:
 // se o bot cair/reiniciar no meio da gravação, o arquivo antigo continua
 // inteiro (antes podia ficar corrompido e o bot "esquecia" tudo).
@@ -8191,6 +8212,8 @@ client.on('messageCreate', async (message) => {
       .then(() => true)
       .catch((err) => !(err && err.code === 10008));
     if (!comandoAindaExiste) return;
+    // Os emojis têm que estar carregados ANTES de montar o painel.
+    await garantirEmojisCarregados(5 * 60 * 1000);
   }
 
   // Dentro do tópico de uma partida, ativar o card "ID e Senha":
@@ -12204,9 +12227,24 @@ async function carregarTodosEmojis() {
   }
 }
 
+// Garante que os emojis estão carregados. Se já estão, volta na hora; se alguém
+// ainda está carregando, espera terminar. Com maxIdadeMs, recarrega se a última
+// carga foi há mais tempo que isso (pega emoji novo que você subiu no servidor).
+let emojisCarregadosEm = 0;
+let emojisCarregando = null;
+function garantirEmojisCarregados(maxIdadeMs = Infinity) {
+  if (emojisCarregando) return emojisCarregando;
+  if (emojisCarregadosEm && Date.now() - emojisCarregadosEm < maxIdadeMs) return Promise.resolve();
+  emojisCarregando = carregarTodosEmojis().finally(() => {
+    emojisCarregadosEm = Date.now();
+    emojisCarregando = null;
+  });
+  return emojisCarregando;
+}
+
 client.once('ready', async () => {
   console.log(`✅ Bot online como ${client.user.tag}`);
-  await carregarTodosEmojis(); // primeiro os emojis, depois os painéis
+  await garantirEmojisCarregados(); // primeiro os emojis, depois os painéis
   await zerarEstadoNoInicio(); // começa sem ninguém em nenhuma fila
   retomarReunioesMeet(); // retoma o auto-delete das reuniões do Meet
   retomarTopicosTela(); // retoma o auto-delete (1h) dos tópicos de tela
