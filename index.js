@@ -12062,6 +12062,10 @@ client.on('interactionCreate', async (interaction) => {
         // o bot espera esta mensagem terminar de ser enviada pra poder apagá-la)
         const promessaAviso = interaction.channel
           .send({
+            // marca (menciona) quem ainda falta confirmar: faz a mensagem
+            // ficar com o destaque amarelo no Discord, igual às outras
+            content: faltantes.map((id) => `<@${id}>`).join(' '),
+            allowedMentions: { users: faltantes },
             embeds: [
               new EmbedBuilder()
                 .setColor(0x57f287) // verde claro
