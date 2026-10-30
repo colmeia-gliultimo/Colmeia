@@ -219,13 +219,13 @@ function formatarValorBR(numero) {
   return `R$${numero.toFixed(2).replace('.', ',')}`;
 }
 
-// Valor mostrado pelo bot quando a fila vira "pagar" = o DOBRO do valor da
-// fila (ex.: fila R$1,00 -> R$2,00). Se o valor não puder ser entendido como
-// número, usa o valor padrão (também dobrado).
+// Valor pago ao mediador = valor da fila (de um painel específico) +
+// acréscimo. Se o valor não puder ser entendido como número, cai no
+// valor padrão + acréscimo.
 function calcularValorMediador(valorFila) {
   const valorFilaNumero = parseValorBR(valorFila);
   const base = valorFilaNumero !== null ? valorFilaNumero : (parseValorBR(VALOR_APOSTA_PADRAO) || 0);
-  return formatarValorBR(base * 2);
+  return formatarValorBR(base + taxaMediadorDoValor(valorFila));
 }
 // Valor pago ao mediador = valor da fila + um acréscimo fixo (calculado
 // automaticamente). Configure o acréscimo em ACRESCIMO_MEDIADOR (em
@@ -2203,7 +2203,11 @@ function montarBotoesQrPix() {
 // Nome do canal quando vira "pagar": "pagar-50,00" (só o valor, com vírgula,
 // sem "R$" e sem emoji). Vale pra todo lugar do bot que renomeia pra "pagar".
 function nomeCanalPagar(valor) {
-  const soValor = String(valor).replace(/R\$/gi, '').replace(/\s+/g, '').trim();
+  // vira "pagar-" + o DOBRO do valor da fila, sem a taxa (ex.: fila 1,00 -> pagar-2,00)
+  const numero = parseValorBR(String(valor));
+  const soValor = numero !== null
+    ? (numero * 2).toFixed(2).replace('.', ',')
+    : String(valor).replace(/R\$/gi, '').replace(/\s+/g, '').trim();
   return `pagar-${soValor}`;
 }
 
