@@ -8512,30 +8512,9 @@ client.on('messageCreate', async (message) => {
     const variante = matchPainelFormato[2] ? matchPainelFormato[2].toLowerCase() : null;
     const valorTexto = (matchPainelFormato[3] || '').trim();
 
-    // VÁRIOS VALORES NO MESMO COMANDO: separe com ponto (ou ; ou linha nova).
-    // Ex.: "!painel2x2 R$1,00. R$10,00. R$20,00." cria 3 painéis.
-    // O ponto só separa quando vem depois do valor (seguido de espaço, fim
-    // do texto ou "R$"), então "1.000,00" continua sendo um valor só.
-    // É só um atalho pra criar vários painéis: cada um é igual ao painel normal.
-    const valores = valorTexto
-      .split(/\.(?=\s|$|R\$)|[;\n]+/i)
-      .map((v) => v.replace(/\.+$/, '').trim())
-      .filter(Boolean);
-    if (!valores.length) valores.push(VALOR_APOSTA_PADRAO);
-
-    if (valores.length > MAX_PAINEIS_POR_COMANDO) {
-      return message.reply(`Muitos valores de uma vez. O máximo é ${MAX_PAINEIS_POR_COMANDO} painéis por comando.`);
-    }
-    // com mais de um valor, confere todos antes de criar (não deixa pela metade)
-    if (valores.length > 1) {
-      const invalidos = valores.filter((v) => parseValorBR(v) === null);
-      if (invalidos.length) {
-        return message.reply(
-          `Não entendi estes valores: ${invalidos.slice(0, 10).map((v) => `\`${v}\``).join(', ')}. ` +
-            'Use assim: `!painel2x2 R$1,00. R$10,00. R$20,00.`'
-        );
-      }
-    }
+    // Um comando = UM painel só (sem separar por ponto, ponto e vírgula ou linha nova).
+    // Ex.: "!painel1x1", "!painel1x1 emu", "!painel1x1 misto", "!painel2x2 R$5,00".
+    const valores = [valorTexto || VALOR_APOSTA_PADRAO];
 
     for (let i = 0; i < valores.length; i++) {
       const instancia = criarInstanciaPainel(formatoChave, variante, valores[i]);
