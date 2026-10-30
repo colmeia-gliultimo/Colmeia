@@ -2697,6 +2697,7 @@ let EMOJI_TK_SUPORTE = '🎧'; // :spr:
 let EMOJI_TK_CENTRAL = '🎫'; // :cntp:
 let EMOJI_TK_VAGAS = '📋'; // :vgs:
 let EMOJI_TK_ORG_URL = null; // :org: (imagem do lado direito)
+let EMOJI_CORREIO = '📩'; // :correio: (mensagem "Mandem o comprovante")
 
 async function carregarEmojisTicket() {
   const procurar = async (nome) => {
@@ -2714,6 +2715,8 @@ async function carregarEmojisTicket() {
   if (cntp) EMOJI_TK_CENTRAL = textoEmoji(cntp);
   const vgs = await procurar('vgs');
   if (vgs) EMOJI_TK_VAGAS = textoEmoji(vgs);
+  const correio = await procurar('correio');
+  if (correio) EMOJI_CORREIO = textoEmoji(correio);
   const org = await procurar('org');
   if (org) EMOJI_TK_ORG_URL = org.imageURL({ extension: org.animated ? 'gif' : 'png', size: 256 });
 }
@@ -4158,12 +4161,12 @@ function montarTextoPedirComprovante(cor = 'vermelho') {
 // laranja de emoji — o Discord não tem laranja no bloco ansi, por isso embed.
 const COR_COMPROVANTE_LARANJA = 0xFF8C00;
 function montarPedirComprovanteLaranja() {
-  const traco = '🟧🟧🟧🟧🟧🟧🟧🟧🟧🟧🟧🟧';
+  const traco = '——————————————';
   return new EmbedBuilder()
     .setColor(COR_COMPROVANTE_LARANJA)
     .setDescription(
       `${traco}\n\n` +
-        '# 📩 MANDEM O COMPROVANTE\n\n' +
+        `${EMOJI_CORREIO} **MANDEM O COMPROVANTE**\n\n` +
         '**Mandem o comprovante do Pix**\n' +
         '**aqui no chat para confirmar**\n' +
         '**o pagamento!**\n\n' +

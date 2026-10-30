@@ -390,8 +390,8 @@ comprovante** no tópico da partida.
   pagou a mais também é válido; ex.: fila de R$100 + taxa, qualquer valor igual
   ou maior vale), destinatário (chave ou nome do mediador) e comprovante que
   nunca foi usado.
-- A mensagem **"MANDEM O COMPROVANTE"** agora é um card bonitinho com traços
-  laranja (🟧) e barra laranja ao lado. As versões de traços vermelhos e amarelos
+- A mensagem **"MANDEM O COMPROVANTE"** agora é um card com barra laranja ao lado,
+  traços (——————) em cima e embaixo e o emoji `:correio:` do servidor (tamanho normal) no título. As versões de traços vermelhos e amarelos
   continuam disponíveis no ⚙️ do mediador.
 - Quando **todos** os comprovantes são confirmados, aparece o card **"Todos os
   comprovantes confirmados 🟢"** e, logo abaixo, a mensagem **"Criando sala..."**
