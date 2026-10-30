@@ -134,6 +134,13 @@ const {
   StringSelectMenuBuilder,
   UserSelectMenuBuilder,
   LabelBuilder, // só existe no discord.js >= 14.22 (se não existir, o formulário usa o campo de texto de antes)
+  ContainerBuilder, // painel de atendimento novo (!painelticket)
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  ThumbnailBuilder,
+  MessageFlags,
 } = require('discord.js');
 const QRCode = require('qrcode');
 const Jimp = require('jimp');
@@ -2683,6 +2690,86 @@ function montarEmbedPainelAtendimento() {
     );
 }
 
+// Emojis do painel de atendimento (nomes no servidor: :r: :spr: :cntp: :vgs: :org:).
+// Se o bot não achar o emoji, usa um emoji comum no lugar.
+let EMOJI_TK_REEMBOLSO = '💰'; // :r:
+let EMOJI_TK_SUPORTE = '🎧'; // :spr:
+let EMOJI_TK_CENTRAL = '🎫'; // :cntp:
+let EMOJI_TK_VAGAS = '📋'; // :vgs:
+let EMOJI_TK_ORG_URL = null; // :org: (imagem do lado direito)
+
+async function carregarEmojisTicket() {
+  const procurar = async (nome) => {
+    for (const guild of client.guilds.cache.values()) {
+      const e = await acharEmojiPorNome(nome, guild).catch(() => null);
+      if (e) return e;
+    }
+    return null;
+  };
+  const r = await procurar('r');
+  if (r) EMOJI_TK_REEMBOLSO = textoEmoji(r);
+  const spr = await procurar('spr');
+  if (spr) EMOJI_TK_SUPORTE = textoEmoji(spr);
+  const cntp = await procurar('cntp');
+  if (cntp) EMOJI_TK_CENTRAL = textoEmoji(cntp);
+  const vgs = await procurar('vgs');
+  if (vgs) EMOJI_TK_VAGAS = textoEmoji(vgs);
+  const org = await procurar('org');
+  if (org) EMOJI_TK_ORG_URL = org.imageURL({ extension: org.animated ? 'gif' : 'png', size: 256 });
+}
+
+// Painel novo: um cartão com barra amarela, os 3 botões (Reembolso / Suporte / Vagas)
+// e o texto no rodapé. Se o discord.js for antigo demais, cai no painel de antes.
+function montarPainelAtendimentoNovo() {
+  if (typeof ContainerBuilder !== 'function' || !MessageFlags || MessageFlags.IsComponentsV2 === undefined) {
+    return { embeds: [montarEmbedPainelAtendimento()], components: [montarSelectAtendimento()] };
+  }
+  const thumb = EMOJI_TK_ORG_URL || EMOJI_ORG_URL;
+  const container = new ContainerBuilder().setAccentColor(COR_AMARELA);
+
+  const cabecalho = new TextDisplayBuilder().setContent(
+    `## ${EMOJI_TK_CENTRAL} Central de Atendimento\nPrecisa de ajuda? Escolha uma opção abaixo. A conversa abre num canal privado, só entre você e a equipe.`
+  );
+  if (thumb && typeof SectionBuilder === 'function') {
+    container.addSectionComponents(
+      new SectionBuilder().addTextDisplayComponents(cabecalho).setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb))
+    );
+  } else {
+    container.addTextDisplayComponents(cabecalho);
+  }
+
+  container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(
+      `${EMOJI_TK_REEMBOLSO} **Reembolso**\n-# Pagamento, PIX ou valor que não caiu\n` +
+        `${EMOJI_TK_SUPORTE} **Suporte**\n-# Dúvidas, denúncias e outros problemas\n` +
+        `${EMOJI_TK_VAGAS} **Vagas**\n-# Mediador, analista ou suporte`
+    )
+  );
+
+  const botao = (id, rotulo, emoji) => {
+    const b = new ButtonBuilder().setCustomId(id).setLabel(rotulo).setStyle(ButtonStyle.Secondary);
+    try {
+      b.setEmoji(emoji);
+    } catch (err) {
+      // emoji inválido: fica só o texto
+    }
+    return b;
+  };
+  container.addActionRowComponents(
+    new ActionRowBuilder().addComponents(
+      botao('atendimento_btn_reembolso', 'Reembolso', EMOJI_TK_REEMBOLSO),
+      botao('atendimento_btn_suporte', 'Suporte', EMOJI_TK_SUPORTE),
+      botao('atendimento_btn_vagas', 'Vagas', EMOJI_TK_VAGAS)
+    )
+  );
+
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent('-# Um ticket por vez. Deixe prints e comprovantes à mão.'));
+
+  return { components: [container], flags: MessageFlags.IsComponentsV2 };
+}
+
 function montarSelectAtendimento() {
   const select = new StringSelectMenuBuilder()
     .setCustomId('atendimento_menu')
@@ -3296,6 +3383,10 @@ function retomarTicketsOcultos() {
   for (const userId of Object.keys(ticketsOcultos)) agendarReexibirTicket(userId);
 }
 
+// Mensagem mostrada (só pra quem apertou) quando não há suporte na fila.
+const MSG_SUPORTE_OFFLINE =
+  '🐝 **EQUIPE DE SUPORTE**\n\nNo momento, nossa equipe de suporte está offline. Aguarde até que um atendente fique disponível para ajudá-lo! 🍯';
+
 async function acharTicketAberto(canal, usuario) {
   const ativos = await canal.threads.fetchActive().catch(() => null);
   if (!ativos) return null;
@@ -3313,7 +3404,7 @@ async function bloquearAberturaDeTicket(interaction) {
     };
   }
   if (!filaSuporte.length) {
-    return { texto: '⏳ Não há nenhum suporte disponível agora. Tente de novo mais tarde.', ocultar: false };
+    return { texto: MSG_SUPORTE_OFFLINE, ocultar: false };
   }
   return null;
 }
@@ -8552,10 +8643,8 @@ client.on('messageCreate', async (message) => {
       return responderPrivadamente(message, { content: 'Você não tem permissão para criar o painel.' });
     }
 
-    await message.channel.send({
-      embeds: [montarEmbedPainelAtendimento()],
-      components: [montarSelectAtendimento()],
-    });
+    await garantirEmojisCarregados(5 * 60 * 1000).catch(() => {});
+    await message.channel.send(montarPainelAtendimentoNovo());
     await message.delete().catch(() => {});
     return;
   }
@@ -11192,12 +11281,15 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   // --- Select: "Selecione o tipo de atendimento..." (Suporte / Reembolso) ---
-  if (interaction.isStringSelectMenu() && interaction.customId === 'atendimento_menu') {
+  if (
+    (interaction.isStringSelectMenu() && interaction.customId === 'atendimento_menu') ||
+    (interaction.isButton() && ['atendimento_btn_reembolso', 'atendimento_btn_suporte', 'atendimento_btn_vagas'].includes(interaction.customId))
+  ) {
     // só abre ticket se tiver suporte na fila; 2ª vez com ticket aberto = canal oculto por 1h
     const bloqueio = await bloquearAberturaDeTicket(interaction);
     if (bloqueio) return aplicarBloqueioTicket(interaction, bloqueio, false);
 
-    const opcao = interaction.values[0];
+    const opcao = interaction.isButton() ? interaction.customId.replace('atendimento_btn_', '') : interaction.values[0];
 
     if (opcao === 'reembolso') {
       return interaction.showModal(montarModalReembolso());
@@ -11215,7 +11307,7 @@ client.on('interactionCreate', async (interaction) => {
     if (opcao === 'vagas') {
       const suporteId = await pegarProximoSuporte();
       if (!suporteId) {
-        return interaction.reply({ content: '⏳ Não há nenhum suporte disponível agora. Tente de novo mais tarde.', ephemeral: true });
+        return interaction.reply({ content: MSG_SUPORTE_OFFLINE, ephemeral: true });
       }
       const topico = await interaction.channel.threads
         .create({
@@ -11254,7 +11346,7 @@ client.on('interactionCreate', async (interaction) => {
 
     const suporteId = await pegarProximoSuporte();
     if (!suporteId) {
-      return interaction.reply({ content: '⏳ Não há nenhum suporte disponível agora. Tente de novo mais tarde.', ephemeral: true });
+      return interaction.reply({ content: MSG_SUPORTE_OFFLINE, ephemeral: true });
     }
 
     const topico = await interaction.channel.threads
@@ -11304,7 +11396,7 @@ client.on('interactionCreate', async (interaction) => {
 
     const suporteId = await pegarProximoSuporte();
     if (!suporteId) {
-      return interaction.update({ content: '⏳ Não há nenhum suporte disponível agora. Tente de novo mais tarde.', components: [] });
+      return interaction.update({ content: MSG_SUPORTE_OFFLINE, components: [] });
     }
 
     const topico = await interaction.channel.threads
@@ -12294,6 +12386,11 @@ async function carregarTodosEmojis() {
     await carregarEmojiApagar();
   } catch (err) {
     console.error('⚠️ Erro ao carregar o emoji :sss::', err.message);
+  }
+  try {
+    await carregarEmojisTicket(); // :r: :spr: :cntp: :vgs: :org: do painel de atendimento
+  } catch (err) {
+    console.error('⚠️ Erro ao carregar os emojis do painel de atendimento:', err.message);
   }
   console.log(`🎨 Emojis carregados (servidores do bot: ${client.guilds.cache.size}). Troféu = ${EMOJI_TROFEU} | Coroa 2 = ${EMOJI_COROA_2}`);
 }

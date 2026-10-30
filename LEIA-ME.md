@@ -343,10 +343,15 @@ o bot não faz nada disso. A janela de busca de pagamentos é
 
 ## Tickets de suporte (`!painelticket`)
 
-1. A pessoa escolhe **Suporte** ou **Reembolso** no painel.
+1. A pessoa aperta um dos botões do painel: **Reembolso**, **Suporte** ou **Vagas**. O painel é um
+   cartão com barra amarela ("Central de Atendimento"), com os emojis `:cntp:` (título), `:r:`
+   (Reembolso), `:spr:` (Suporte), `:vgs:` (Vagas) e `:org:` (imagem do lado direito). O bot procura
+   esses emojis pelo nome no servidor; se não achar, usa um emoji comum. Painéis antigos (com menu)
+   continuam funcionando; para ver o formato novo, poste `!painelticket` de novo.
 2. **Só abre atendimento se houver suporte na fila de suporte**
-   (`!painelfilasuporte`). Sem ninguém na fila, o bot responde "Não há
-   nenhum suporte disponível agora".
+   (`!painelfilasuporte`). Sem ninguém na fila, o bot responde (só para quem apertou)
+   "🐝 EQUIPE DE SUPORTE — No momento, nossa equipe de suporte está offline. Aguarde até que um atendente
+   fique disponível para ajudá-lo! 🍯".
 3. O ticket vira um **tópico privado** `suporte-<usuário>` ou
    `reembolso-<usuário>`, visto **só pela pessoa, pelo suporte da vez**
    (escolhido em revezamento entre os da fila) **e pela equipe**. Vale
