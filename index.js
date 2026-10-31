@@ -242,9 +242,9 @@ const TAXAS_POR_VALOR = {
   3: 0.5,
   5: 0.5,
   10: 0.5,
-  20: 0.75,
-  50: 1.5,
-  100: 3.5,
+  20: 1,
+  50: 2.5,
+  100: 5,
 };
 function taxaMediadorDoValor(valorFila) {
   const numero = parseValorBR(valorFila);
@@ -8870,7 +8870,7 @@ async function postarTextoEmCards(channel, tituloPrincipal, texto) {
       },
       {
         titulo: '💰 TAXA EM FILAS ALTAS:',
-        texto: '▫️ Filas acima de R$ 50 possuem taxa de 5%.',
+        texto: '▫️ Filas a partir de R$ 20,00 possuem taxa de 5%.',
       },
       {
         titulo: '💾 REPLAY:',
